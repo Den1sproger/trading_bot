@@ -152,12 +152,10 @@ class Trade:
     def __check_intersection_stoch(self,
                                    blue: tuple[float],
                                    orange: tuple[float]) -> None:
-        if (blue[-1] >= 70) and (orange[-1] >= 70) and \
-            (blue[-1] < orange[-1]) and (blue[-2] > orange[-2]):
+        if (orange[-2] >= 70) and (blue[-1] < orange[-1]) and (blue[-2] > orange[-2]):
             self.current_position = 'short'
         
-        elif (blue[-1] <= 30) and (orange[-1] <= 30) and \
-            (blue[-1] > orange[-1]) and (blue[-2] < orange[-2]):
+        elif (orange[-2] <= 30) and (blue[-1] > orange[-1]) and (blue[-2] < orange[-2]):
             self.current_position = 'long'
 
 
@@ -302,10 +300,14 @@ class Trade:
             stoch_position = self.__check_stoch(orange[-1])
             if stoch_position != self.current_position:
                 logging.info(f'stoch position => {stoch_position}')
-                self.is_intersection = False
+
                 self.candles_after_intersection = 0
                 self.current_position = ''
-                return
+
+                self.__check_intersection_stoch(blue, orange)
+                if not self.current_position:
+                    self.is_intersection = False
+                    return
 
         if self.__check_intersection_ema():
             logging.info(f'Intersecion ema => {self.current_position}')
