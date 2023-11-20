@@ -59,13 +59,13 @@ class Trade:
         
         ema_50 = list(ema_50)[-2:]
         ema_150 = list(ema_150)[-2:]
-        
+
         return ema_50, ema_150
 
 
     def __send_message(self, msg_text: str, retry: int = 5) -> None:
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        url = f'https://api.telegram.org/bot{API_KEY}/sendMessage'
+        url = f'https://api.telegram.org/bot{API_TOKEN}/sendMessage'
 
         ikb = json.dumps({
             'inline_keyboard': [[{
