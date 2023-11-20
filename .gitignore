@@ -5,3 +5,6 @@ test.py
 TA_Lib-0.4.24-cp310-cp310-win_amd64.whl
 build/
 dist/
+venv/
+*.log
+dzengi.js
