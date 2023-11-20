@@ -8,3 +8,5 @@ dist/
 venv/
 *.log
 dzengi.js
+saved_models/short_1_1.keras
+saved_models/short_3.keras
