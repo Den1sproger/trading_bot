@@ -28,7 +28,6 @@ class Trade:
         self.market_url = 'https://dzengi.com/trading/platform/charting'
 
         self.prices_data = self.get_prices()     # lists with the last prices
-
         self.buy = False
         self.sell = True
 
@@ -202,17 +201,7 @@ class Trade:
     @create_request(candles=2)
     def get_last_prices_for_update(self, **kwargs) -> list[float]:
         # get prices of the last closed candle
-        response = kwargs['response']
-        return response.json()
-        # data = []
-        # for i in range(2, 5):    # high price, low price, close price
-        #     try:
-        #         item = float(response.json()[-2][i])
-        #     except KeyError as _ex:
-        #         logging.critical(f'{_ex} ==> {response.status_code} <=> {response.json()}')
-        #     data.append(item)
-
-        # return data
+        return kwargs['response']
         
 
     def place_order(self, order_type: str) -> None:     # buy or sell
@@ -227,8 +216,6 @@ class Trade:
     def on_message(self, klines: list) -> None:    # get data from websockets        
         # if a new candle has started
         kline_start_time = str(klines[-1][0])
-        # print('fisrt: ', kline_start_time)
-        # print('second: ', str(klines[-2][0]))
 
         if kline_start_time == self.last_kline_start_time:
             # delete first price in lists and add new price in the list end
@@ -246,11 +233,11 @@ class Trade:
 
         elif str(klines[-2][0]) == self.last_kline_start_time:
             # delete last price in lists and add new price in the list end
+
             # self.candles_count += 1
             # print(f'new_candle => {self.candles_count}')
             count = 0
             for i in (2, 3, 4):            # high price, low price, close price    
-                # prices = self.get_last_prices_for_update()
                 self.prices_data[count].pop(-1)
                 self.prices_data[count].append(float(klines[-2][i]))
                 self.prices_data[count].pop(0)
@@ -308,12 +295,13 @@ class Trade:
                 if not self.current_position:
                     self.is_intersection = False
                     return
+                
 
-        if self.__check_intersection_ema():
+        if self.__check_position_ema() and self.__check_intersection_ema():
             logging.info(f'Intersecion ema => {self.current_position}')
             nn_action = self.__check_neural_network()
+
             if nn_action == 'BUY':
-                logging.info(f'nn decision => {nn_action} ')
                 unix_time = int(self.last_kline_start_time[:-3])
                 candle_start_time = datetime.fromtimestamp(unix_time)
 
@@ -326,21 +314,10 @@ class Trade:
 
 
     def streaming(self):
-        # url = f'https://api-adapter.dzengi.com/api/v1/klines?symbol={self.symbol_no_slash}&interval={self.interval}&limit=2'
-        # print(self.last_kline_start_time)
         while True:
             klines = self.get_last_prices_for_update()
-            # r = requests.get(url)
-            # response = r.json()[-1]
-
-            # kline = {
-            #     't': response[0],
-            #     'h': response[2],
-            #     'l': response[3],
-            #     'c': response[4]
-            # }
             self.on_message(klines)
-            time.sleep(45)
+            time.sleep(10)
                  
 
     def __del__(self) -> None:
@@ -358,8 +335,6 @@ if __name__ == '__main__':
         filemode='w',
         format="%(asctime)s %(levelname)s %(message)s"
     )
-    # symbol = SYMBOL
-    # interval = INTERVAL
 
     stream = Trade(symbol=symbol.upper(), interval=interval.lower())
     stream.streaming()
