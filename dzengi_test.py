@@ -38,6 +38,8 @@ class Trade:
         self.last_kline_start_time: str
         # self.candles_count = 0
 
+
+
     def __get_start_ema(self, close_prices: list[float]) -> list[float]:
         ema_50_l = []
         ema_150_l = []
@@ -52,6 +54,7 @@ class Trade:
         return ema_50_l, ema_150_l
 
 
+
     def __calc_current_ema(self) -> list[float]:
         ema_50 = overlays.ema(price=pd.Series(self.prices_data[2]), period=50)
         ema_150 = overlays.ema(price=pd.Series(self.prices_data[2]), period=150)
@@ -60,6 +63,7 @@ class Trade:
         ema_150 = list(ema_150)[-2:]
 
         return ema_50, ema_150
+
 
 
     def __send_message(self, msg_text: str, retry: int = 5) -> None:
@@ -94,6 +98,7 @@ class Trade:
                 logging.info(f'Cannot send message to chat_id = {GROUP_CHAT_ID}')
 
 
+
     def __normalization(self) -> list[any]:
         data = []
 
@@ -113,6 +118,7 @@ class Trade:
         return data
     
 
+
     def __check_neural_network(self) -> str:
         model = keras.models.load_model(f'saved_models/{self.current_position}.keras')
         normalizated_data = self.__normalization()
@@ -127,6 +133,7 @@ class Trade:
         return action
 
 
+
     def __check_position_ema(self) -> bool:
         if (self.current_position == 'short') and \
             (self.prices_data[3][-1] < self.prices_data[4][-1]):
@@ -138,21 +145,23 @@ class Trade:
         return False
     
 
+
     def __check_intersection_ema(self) -> bool:
         # last_close_prices = self.prices_data[2][-10:]
-        last_150_ema = self.prices_data[4][-15:]
+        last_150_ema = self.prices_data[4][-10:]
 
         if self.current_position == 'short':
-            last_high_prices = self.prices_data[0][-15:]
+            last_high_prices = self.prices_data[0][-10:]
             if max(last_high_prices) > max(last_150_ema):
                 return True
             
         elif self.current_position == 'long':
-            last_low_prices = self.prices_data[1][-15:]
+            last_low_prices = self.prices_data[1][-10:]
             if min(last_low_prices) < min(last_150_ema):
                 return True
             
         return False
+
 
 
     def __check_intersection_stoch(self,
@@ -165,6 +174,7 @@ class Trade:
             self.current_position = 'long'
 
 
+
     def __check_stoch(self, orange: float) -> str | None:
         if (self.current_position == 'short') and (orange >= 20):
             return 'short'
@@ -172,6 +182,7 @@ class Trade:
         elif (self.current_position == 'long') and (orange <= 80):
             return 'long'
     
+
 
     def create_request(candles):
         def decorator(func):
@@ -188,6 +199,7 @@ class Trade:
             return wrapper
         return decorator
     
+
 
     @create_request(candles=300)
     def get_prices(self, **kwargs) -> list[list[float]]:
@@ -213,11 +225,13 @@ class Trade:
         return data   # prices
     
 
+
     @create_request(candles=2)
     def get_last_prices_for_update(self, **kwargs) -> list[float]:
         # get prices of the last closed candle
         return kwargs['response']
         
+
 
     def place_order(self, order_type: str) -> None:     # buy or sell
         if order_type.lower() == 'buy':
@@ -226,6 +240,7 @@ class Trade:
         elif order_type.lower() == 'sell':
             order = self.client.create_order(symbol=SYMBOL, side='sell', type='MARKET')
             print('Close position', order)
+
 
 
     def on_message(self, klines: list) -> None:    # get data from websockets        
@@ -334,7 +349,8 @@ class Trade:
         while True:
             klines = self.get_last_prices_for_update()
             self.on_message(klines)
-            time.sleep(10)
+            time.sleep(45)
+                 
                  
 
     def __del__(self) -> None:
