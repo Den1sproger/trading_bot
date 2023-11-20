@@ -149,7 +149,7 @@ class Trade:
     def __check_intersection_ema(self) -> bool:
         # last_close_prices = self.prices_data[2][-10:]
         last_150_ema = self.prices_data[4][-10:]
-
+    
         if self.current_position == 'short':
             last_high_prices = self.prices_data[0][-10:]
             if max(last_high_prices) > max(last_150_ema):
@@ -181,6 +181,19 @@ class Trade:
         
         elif (self.current_position == 'long') and (orange <= 80):
             return 'long'
+
+
+
+    def __check_candle_ema(self) -> bool:
+        if (self.current_position == 'short') and \
+            (self.prices_data[2][-1] < self.prices_data[4][-1]):    # last close price less than last ema 150
+            return True
+
+        elif (self.current_position == 'long') and \
+            (self.prices_data[2][-1] > self.prices_data[4][-1]):    # last close price more than last ema 150
+            return True
+        
+        return False
     
 
 
@@ -329,7 +342,10 @@ class Trade:
                     return
                 
 
-        if self.__check_position_ema() and self.__check_intersection_ema():
+        if self.__check_position_ema() and \
+            self.__check_intersection_ema() and \
+            self.__check_candle_ema():
+            
             logging.info(f'Intersecion ema => {self.current_position}')
             nn_action = self.__check_neural_network()
 
