@@ -167,30 +167,30 @@ class Trade:
     def __check_intersection_stoch(self,
                                    blue: tuple[float],
                                    orange: tuple[float]) -> None:
-        if (orange[-2] >= 70) and (blue[-1] < orange[-1]) and (blue[-2] > orange[-2]):
+        if (orange[-2] >= 75) and (blue[-1] < orange[-1]) and (blue[-2] > orange[-2]):
             self.current_position = 'short'
         
-        elif (orange[-2] <= 30) and (blue[-1] > orange[-1]) and (blue[-2] < orange[-2]):
+        elif (orange[-2] <= 25) and (blue[-1] > orange[-1]) and (blue[-2] < orange[-2]):
             self.current_position = 'long'
 
 
 
     def __check_stoch(self, orange: float) -> str | None:
-        if (self.current_position == 'short') and (orange >= 20):
+        if (self.current_position == 'short') and (orange >= 40):
             return 'short'
         
-        elif (self.current_position == 'long') and (orange <= 80):
+        elif (self.current_position == 'long') and (orange <= 60):
             return 'long'
 
 
 
     def __check_candle_ema(self) -> bool:
         if (self.current_position == 'short') and \
-            (self.prices_data[2][-1] < self.prices_data[4][-1]):    # last close price less than last ema 150
+            (self.prices_data[2][-1] < self.prices_data[3][-1]):    # last close price less than last ema 50
             return True
 
         elif (self.current_position == 'long') and \
-            (self.prices_data[2][-1] > self.prices_data[4][-1]):    # last close price more than last ema 150
+            (self.prices_data[2][-1] > self.prices_data[3][-1]):    # last close price more than last ema 50
             return True
         
         return False
@@ -298,7 +298,7 @@ class Trade:
 
             if self.is_intersection:
                 self.candles_after_intersection += 1
-                if self.candles_after_intersection > 22:
+                if self.candles_after_intersection > 15:
                     self.candles_after_intersection = 0
                     self.current_position = ''
                     self.is_intersection = False
