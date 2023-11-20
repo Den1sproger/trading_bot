@@ -127,22 +127,29 @@ class Trade:
         return action
 
 
+    def __check_position_ema(self) -> bool:
+        if (self.current_position == 'short') and \
+            (self.prices_data[3][-1] < self.prices_data[4][-1]):
+            return True
+        elif (self.current_position == 'long') and \
+            (self.prices_data[3][-1] > self.prices_data[4][-1]):
+            return True
+        
+        return False
+    
+
     def __check_intersection_ema(self) -> bool:
         # last_close_prices = self.prices_data[2][-10:]
         last_150_ema = self.prices_data[4][-15:]
 
         if self.current_position == 'short':
             last_high_prices = self.prices_data[0][-15:]
-            max_last_ema = max(last_150_ema)
-            max_last_high_prices = max(last_high_prices)
-            if max_last_high_prices > max_last_ema:
+            if max(last_high_prices) > max(last_150_ema):
                 return True
             
         elif self.current_position == 'long':
             last_low_prices = self.prices_data[1][-15:]
-            min_last_ema = min(last_150_ema)
-            min_last_low_price = min(last_low_prices)
-            if min_last_low_price < min_last_ema:
+            if min(last_low_prices) < min(last_150_ema):
                 return True
             
         return False
