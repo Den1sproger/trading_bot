@@ -29,7 +29,7 @@ class Trade:
 
         self.prices_data = self.get_prices()     # lists with the last prices
         self.buy = False
-        self.sell = True
+        # self.sell = True
 
         self.is_intersection = False
         self.candles_after_intersection = 0
@@ -302,6 +302,7 @@ class Trade:
                     self.candles_after_intersection = 0
                     self.current_position = ''
                     self.is_intersection = False
+                    if self.buy: self.buy = False
         else:
             logging.info('Похоже график пошел по пизде')
             raise Exception('Похоже график пошел по пизде')
@@ -335,6 +336,7 @@ class Trade:
 
                 self.candles_after_intersection = 0
                 self.current_position = ''
+                if self.buy: self.buy = False
 
                 self.__check_intersection_stoch(blue, orange)
                 if not self.current_position:
@@ -348,8 +350,9 @@ class Trade:
             
             logging.info(f'Intersecion ema => {self.current_position}')
             nn_action = self.__check_neural_network()
-
-            if nn_action == 'BUY':
+            
+            if (nn_action == 'BUY') and (not self.buy):
+                self.buy = True
                 unix_time = int(self.last_kline_start_time[:-3])
                 candle_start_time = datetime.fromtimestamp(unix_time)
 
@@ -371,6 +374,7 @@ class Trade:
 
     def __del__(self) -> None:
         return
+
 
 
 
