@@ -97,14 +97,14 @@ class Trade:
     def __normalization(self) -> list[any]:
         data = []
 
-        all_prices = self.prices_data[2] + self.prices_data[3] + self.prices_data[4]
+        all_prices = self.prices_data[2][-150:] + self.prices_data[3] + self.prices_data[4]
         max_price = max(all_prices)
         min_price = min(all_prices)
 
         for price_index in (2, 3, 4):
             new_prices = []
 
-            for price in self.prices_data[price_index]:
+            for price in self.prices_data[price_index][-150:]:
                 new_price = (price - min_price) / (max_price - min_price)
                 new_prices.append(float("%.10f" % new_price))
 
@@ -181,15 +181,19 @@ class Trade:
     @create_request(candles=300)
     def get_prices(self, **kwargs) -> list[list[float]]:
         # get the 3 lists with the last several hundreds
-        # high prices, low prices, close prices 
+        # high prices, low prices, close prices
         response = kwargs['response']
-        self.last_kline_start_time = str(response.json()[-1][0])
+        self.last_kline_start_time = str(response[-1][0])
         data = []
-        for i in range(2, 5):    # high price, low price, close price
-            item = [float(kline[i]) for kline in response.json()[150:]]
+        for i in (2, 3):    # high price, low price
+            item = [float(kline[i]) for kline in response[150:]]
             data.append(item)
+        
+        data.append(        # close prices
+            [float(kline[4]) for kline in response[149:]]
+        )
 
-        left_close = [float(kline[4]) for kline in response.json()[:150]]
+        left_close = [float(kline[4]) for kline in response[:149]]
         ema_50, ema_150 = self.__get_start_ema(left_close + data[-1])
 
         data.append(ema_50)
@@ -260,12 +264,14 @@ class Trade:
                     self.current_position = ''
                     self.is_intersection = False
         else:
+            logging.info('Похоже график пошел по пизде')
             raise Exception('Похоже график пошел по пизде')
+    
 
         slowk, slowd = indicators.stochastic(
             high=pd.Series(self.prices_data[0]),
             low=pd.Series(self.prices_data[1]),
-            close=pd.Series(self.prices_data[2]),
+            close=pd.Series(self.prices_data[2][-150:]),
             period=5, perc_k_smoothing=5, perc_d_smoothing=5
         )
 
