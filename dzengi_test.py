@@ -178,7 +178,11 @@ class Trade:
             def wrapper(self):
                 url = f"https://api-adapter.dzengi.com/api/v1/klines?symbol={self.symbol_no_slash}&interval={self.interval}&limit={candles}"
                 r = requests.get(url)
-                
+
+                try:
+                    r = r.json()
+                except Exception as _ex:
+                    logging.critical(f'{_ex} ==> {r.status_code} <=> {r}')
                 result = func(self, response=r)
                 return result
             return wrapper
