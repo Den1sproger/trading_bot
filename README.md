@@ -2,5 +2,5 @@
 Bot for the strategy trading
 
 
-* See main file => main.py
+* See file => dzengi_test.py
 * See neural network directory => neural_networks
