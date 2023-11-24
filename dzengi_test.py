@@ -176,10 +176,10 @@ class Trade:
 
 
     def __check_stoch(self, orange: float) -> str | None:
-        if (self.current_position == 'short') and (orange >= 40):
+        if (self.current_position == 'short') and (orange >= 25):
             return 'short'
         
-        elif (self.current_position == 'long') and (orange <= 60):
+        elif (self.current_position == 'long') and (orange <= 75):
             return 'long'
 
 
@@ -256,7 +256,7 @@ class Trade:
 
 
 
-    def on_message(self, klines: list) -> None:    # get data from websockets        
+    def on_message(self, klines: list) -> None or False:    # get data from websockets        
         # if a new candle has started
         kline_start_time = str(klines[-1][0])
 
@@ -304,8 +304,7 @@ class Trade:
                     self.is_intersection = False
                     if self.buy: self.buy = False
         else:
-            logging.info('Похоже график пошел по пизде')
-            raise Exception('Похоже график пошел по пизде')
+            return False
     
 
         slowk, slowd = indicators.stochastic(
@@ -352,14 +351,21 @@ class Trade:
             nn_action = self.__check_neural_network()
             
             if (nn_action == 'BUY') and (not self.buy):
+                log_text = f'close price => {self.prices_data[2][-1]}\n' \
+                    f'ema 50 => {self.prices_data[3][-1]}\n' \
+                    f'ema 150 => {self.prices_data[4][-1]}\n' \
+                    f'stoch orange => {orange[-1]}\n' \
+                    f'stoch blue => {blue[-1]}\n'
+                    
+                logging.info(log_text)
                 self.buy = True
                 unix_time = int(self.last_kline_start_time[:-3])
                 candle_start_time = datetime.fromtimestamp(unix_time)
 
                 self.__send_message(
                     f'❗️❗️❗️СИГНАЛ❗️❗️❗️\n{self.symbol}\n{self.interval}\n' \
-                    f'{self.current_position}\nВремя начала свечи: {candle_start_time}\n' \
-                    f'Current close price => {self.prices_data[2][-1]}'
+                    f'{self.current_position}\nВремя начала свечи: {candle_start_time}\n\n' \
+                    f'{log_text}'
                 )
 
 
@@ -367,14 +373,30 @@ class Trade:
     def streaming(self):
         while True:
             klines = self.get_last_prices_for_update()
-            self.on_message(klines)
-            time.sleep(45)
+            if self.on_message(klines) == False: return
+
+            time.sleep(50)
                  
                  
 
     def __del__(self) -> None:
         return
 
+
+
+def main(symbol: str, interval: str) -> None:
+    retry = 5
+
+    while True:
+        if retry > 0:
+            stream = Trade(symbol=symbol.upper(), interval=interval.lower())
+            stream.streaming()
+        else:
+            logging.critical('График конкретно пошел по пизде')
+            raise Exception('График конкретно пошел по пизде')
+        
+        logging.error('Похоже график пошел по пизде')
+        retry -= 1
 
 
 
@@ -389,5 +411,5 @@ if __name__ == '__main__':
         format="%(asctime)s %(levelname)s %(message)s"
     )
 
-    stream = Trade(symbol=symbol.upper(), interval=interval.lower())
-    stream.streaming()
+    main(symbol, interval)
+        
