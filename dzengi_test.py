@@ -48,8 +48,8 @@ class Trade:
             prices = pd.Series(close_prices[:candle])
             ema_50 = overlays.ema(prices, period=50)
             ema_150 = overlays.ema(prices, period=150)
-            ema_50_l.append(float(tuple(ema_50)[-1]))
-            ema_150_l.append(float(tuple(ema_150)[-1]))
+            ema_50_l.append(round(float(tuple(ema_50)[-1]), 6))
+            ema_150_l.append(round(float(tuple(ema_150)[-1]), 6))
 
         return ema_50_l, ema_150_l
 
@@ -59,8 +59,8 @@ class Trade:
         ema_50 = overlays.ema(price=pd.Series(self.prices_data[2]), period=50)
         ema_150 = overlays.ema(price=pd.Series(self.prices_data[2]), period=150)
         
-        ema_50 = list(ema_50)[-2:]
-        ema_150 = list(ema_150)[-2:]
+        ema_50 = [round(i, 6) for i in list(ema_50)[-2:]]
+        ema_150 = [round(i, 6) for i in list(ema_150)[-2:]]
 
         return ema_50, ema_150
 
