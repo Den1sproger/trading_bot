@@ -2,19 +2,26 @@ import time
 import json
 import logging
 import urllib3
+import os
 
 import requests
 import numpy as np
 import pandas as pd
 import keras
 
+from pathlib import Path
 from datetime import datetime
 from technical_analysis import overlays, indicators
 from config import *
+from draw_candle_graph import DrawGraph
+
 
 
 SYMBOL = 'BTC/USD'
 INTERVAL = '1m'
+ROOT_DIR = Path(__file__).parent
+CANDLE_IMAGE_DIR = 'saved_candle_images'
+
 
 
 class Trade:
@@ -66,9 +73,12 @@ class Trade:
 
 
 
-    def __send_message(self, msg_text: str, retry: int = 5) -> None:
+    def __send_message(self,
+                       msg_text: str,
+                       photo_path: str,
+                       retry: int = 5) -> None:
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        url = f'https://api.telegram.org/bot{API_TOKEN}/sendMessage'
+        url = f'https://api.telegram.org/bot{API_TOKEN}/sendPhoto'
 
         ikb = json.dumps({
             'inline_keyboard': [[{
@@ -84,9 +94,10 @@ class Trade:
                 verify=False,
                 data={
                     'chat_id': int(GROUP_CHAT_ID),
-                    'text': msg_text,
+                    'caption': msg_text,
                     'reply_markup': ikb
-                }
+                },
+                files={'photo': open(photo_path, 'rb')}
             )
         except Exception as _ex:
             if retry:
@@ -119,9 +130,8 @@ class Trade:
     
 
 
-    def __check_neural_network(self) -> str:
+    def __check_neural_network(self, normalizated_data: list) -> str:
         model = keras.models.load_model(f'saved_models/{self.current_position}.keras')
-        normalizated_data = self.__normalization()
         result = model.predict(np.array([normalizated_data]))
 
         if result[0][0] > result[0][1]:
@@ -348,7 +358,8 @@ class Trade:
             self.__check_candle_ema():
             
             logging.info(f'Intersecion ema => {self.current_position}')
-            nn_action = self.__check_neural_network()
+            normalizated_data = self.__normalization()
+            nn_action = self.__check_neural_network(normalizated_data)
             
             if (nn_action == 'BUY') and (not self.buy):
                 log_text = f'close price => {self.prices_data[2][-1]}\n' \
@@ -362,10 +373,17 @@ class Trade:
                 unix_time = int(self.last_kline_start_time[:-3])
                 candle_start_time = datetime.fromtimestamp(unix_time)
 
+                draw_graph = DrawGraph(normalizated_data)
+                filename = f'{self.symbol}_{self.interval}_{candle_start_time}.png'
+                filename = filename.replace(' ', '_').replace('/', '_').replace(':', '_')
+                savepath = os.path.join(ROOT_DIR, CANDLE_IMAGE_DIR, filename)
+                draw_graph.show_graph_line(save=True, savepath=savepath)
+
                 self.__send_message(
-                    f'❗️❗️❗️СИГНАЛ❗️❗️❗️\n{self.symbol}\n{self.interval}\n' \
+                    msg_text=f'❗️❗️❗️СИГНАЛ❗️❗️❗️\n{self.symbol}\n{self.interval}\n' \
                     f'{self.current_position}\nВремя начала свечи: {candle_start_time}\n\n' \
-                    f'{log_text}'
+                    f'{log_text}',
+                    photo_path=savepath
                 )
 
 
@@ -411,5 +429,8 @@ if __name__ == '__main__':
         format="%(asctime)s %(levelname)s %(message)s"
     )
 
+    image_dir_path = os.path.join(ROOT_DIR, CANDLE_IMAGE_DIR)
+    if not os.path.exists(image_dir_path):
+        os.mkdir(image_dir_path)
+
     main(symbol, interval)
-        
