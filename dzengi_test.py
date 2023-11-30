@@ -316,7 +316,7 @@ class Trade:
         else:
             return False
     
-
+    
         slowk, slowd = indicators.stochastic(
             high=pd.Series(self.prices_data[0]),
             low=pd.Series(self.prices_data[1]),
@@ -329,8 +329,9 @@ class Trade:
 
         # print(f"[{round(blue[-2], 2)}] {round(blue[-1], 2)}")
         # print(f"[{round(orange[-2], 2)}] {round(orange[-1], 2)}\n")
-        # print(f"[{self.prices_data[0][-2]}] {self.prices_data[0][-1]}\n")
-
+        # unix_time = int(self.last_kline_start_time[:-3])
+        # candle_start_time = datetime.fromtimestamp(unix_time)
+        # print(f"{candle_start_time} <=> EMA 150 => [{self.prices_data[4][-2]}] {self.prices_data[4][-1]}\n")
 
         if not self.is_intersection:
             self.__check_intersection_stoch(blue, orange)
@@ -395,10 +396,10 @@ class Trade:
 
             time.sleep(50)
                  
-                 
 
-    def __del__(self) -> None:
+    def __del__(self):
         return
+
 
 
 
