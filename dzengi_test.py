@@ -36,7 +36,6 @@ class Trade:
 
         self.prices_data = self.get_prices()     # lists with the last prices
         self.buy = False
-        # self.sell = True
 
         self.is_intersection = False
         self.candles_after_intersection = 0
@@ -48,28 +47,22 @@ class Trade:
 
 
     def __get_start_ema(self, close_prices: list[float]) -> list[float]:
-        ema_50_l = []
-        ema_150_l = []
-
-        for candle in range(150, 300):
-            prices = pd.Series(close_prices[:candle])
-            ema_50 = overlays.ema(prices, period=50)
-            ema_150 = overlays.ema(prices, period=150)
-            ema_50_l.append(round(float(tuple(ema_50)[-1]), 6))
-            ema_150_l.append(round(float(tuple(ema_150)[-1]), 6))
+        prices = pd.Series(close_prices)
+        ema_50 = overlays.ema(prices, period=50)
+        ema_150 = overlays.ema(prices, period=150)
+        ema_50_l = [round(i, 6) for i in list(ema_50)[150:]]
+        ema_150_l = [round(i, 6) for i in list(ema_150)[150:]]
 
         return ema_50_l, ema_150_l
 
 
 
-    def __calc_current_ema(self) -> list[float]:
+    def __calc_ema(self):
         ema_50 = overlays.ema(price=pd.Series(self.prices_data[2]), period=50)
         ema_150 = overlays.ema(price=pd.Series(self.prices_data[2]), period=150)
-        
-        ema_50 = [round(i, 6) for i in list(ema_50)[-2:]]
-        ema_150 = [round(i, 6) for i in list(ema_150)[-2:]]
 
-        return ema_50, ema_150
+        self.prices_data[3] = [round(i, 6) for i in list(ema_50)[150:]]
+        self.prices_data[4] = [round(i, 6) for i in list(ema_150)[150:]]
 
 
 
@@ -235,13 +228,9 @@ class Trade:
             item = [float(kline[i]) for kline in response[150:]]
             data.append(item)
         
-        data.append(        # close prices
-            [float(kline[4]) for kline in response[149:]]
-        )
+        data.append([float(kline[4]) for kline in response])   # close prices
 
-        left_close = [float(kline[4]) for kline in response[:149]]
-        ema_50, ema_150 = self.__get_start_ema(left_close + data[-1])
-
+        ema_50, ema_150 = self.__get_start_ema(data[-1])
         data.append(ema_50)
         data.append(ema_150)
 
@@ -278,15 +267,10 @@ class Trade:
                 self.prices_data[count].append(float(klines[-1][i]))
                 count += 1
 
-            ema_50, ema_150 = self.__calc_current_ema()
-            for item in (ema_50, ema_150):
-                self.prices_data[count].pop(-1)
-                self.prices_data[count].append(item[-1])
-                count += 1
+            self.__calc_ema()
 
         elif str(klines[-2][0]) == self.last_kline_start_time:
             # delete last price in lists and add new price in the list end
-
             # self.candles_count += 1
             # print(f'new_candle => {self.candles_count}')
             count = 0
@@ -297,13 +281,7 @@ class Trade:
                 self.prices_data[count].append(float(klines[-1][i]))
                 count += 1
 
-            ema_50, ema_150 = self.__calc_current_ema()
-            for item in (ema_50, ema_150):
-                self.prices_data[count].pop(0)
-                self.prices_data[count].pop(-1)
-                self.prices_data[count] += item
-                count += 1
-
+            self.__calc_ema()
             self.last_kline_start_time = kline_start_time
 
             if self.is_intersection:
@@ -315,8 +293,16 @@ class Trade:
                     if self.buy: self.buy = False
         else:
             return False
-    
-    
+
+        # unix_time = int(self.last_kline_start_time[:-3])
+        # candle_start_time = datetime.fromtimestamp(unix_time)
+        # normalizated_data = self.__normalization()
+        # draw_graph = DrawGraph(normalizated_data)
+        # filename = f'{self.symbol}_{self.interval}_{candle_start_time}.png'
+        # filename = filename.replace(' ', '_').replace('/', '_').replace(':', '_')
+        # savepath = os.path.join(ROOT_DIR, CANDLE_IMAGE_DIR, filename)
+        # draw_graph.show_graph_line(save=True, savepath=savepath)
+        
         slowk, slowd = indicators.stochastic(
             high=pd.Series(self.prices_data[0]),
             low=pd.Series(self.prices_data[1]),
@@ -368,8 +354,8 @@ class Trade:
                     f'ema 150 => {self.prices_data[4][-1]}\n' \
                     f'stoch orange => {orange[-1]}\n' \
                     f'stoch blue => {blue[-1]}\n'
-                    
                 logging.info(log_text)
+                
                 self.buy = True
                 unix_time = int(self.last_kline_start_time[:-3])
                 candle_start_time = datetime.fromtimestamp(unix_time)
@@ -380,12 +366,10 @@ class Trade:
                 savepath = os.path.join(ROOT_DIR, CANDLE_IMAGE_DIR, filename)
                 draw_graph.show_graph_line(save=True, savepath=savepath)
 
-                self.__send_message(
-                    msg_text=f'❗️❗️❗️СИГНАЛ❗️❗️❗️\n{self.symbol}\n{self.interval}\n' \
+                all_text = f'❗️❗️❗️СИГНАЛ❗️❗️❗️\n{self.symbol}\n{self.interval}\n' \
                     f'{self.current_position}\nВремя начала свечи: {candle_start_time}\n\n' \
-                    f'{log_text}',
-                    photo_path=savepath
-                )
+                    f'{log_text}'
+                self.__send_message(msg_text=all_text, photo_path=savepath)
 
 
 
