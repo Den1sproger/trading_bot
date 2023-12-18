@@ -79,6 +79,13 @@ class Trade:
             self.current_position = ''
             self.is_intersection = False
             return self.__stoch_is_valid(blue, orange)    # check stoch again on this step
+        
+        # if there was an new intersecton in interval [25, 75]
+        if (self.current_position == 'short' and blue[-2] > orange[-2]) or \
+            (self.current_position == 'long' and blue[-2] < orange[-2]):
+            logging.info(f'New stochastic intersection')
+            self.__reset_signal()
+            return False
 
         return True
 
