@@ -22,6 +22,7 @@ INTERVAL = '1m'
 ROOT_DIR = Path(__file__).parent
 CANDLE_IMAGE_DIR = 'saved_candle_images'
 
+    
 
 
 class Trade:
@@ -43,6 +44,85 @@ class Trade:
 
         self.last_kline_start_time: str
         # self.candles_count = 0
+
+
+
+    def __stoch_is_valid(self,
+                      blue: tuple[float],
+                      orange: tuple[float]) -> bool:
+        if not self.is_intersection:
+            # checking on stoch interseciton for short position
+            if (orange[-2] >= 75) \
+                and (blue[-1] < orange[-1]) \
+                and (blue[-2] > orange[-2]):
+                self.current_position = 'short'
+
+            # checking on stoch interseciton for long position
+            elif (orange[-2] <= 25) \
+                and (blue[-1] > orange[-1]) \
+                and (blue[-2] < orange[-2]):
+                self.current_position = 'long'
+
+            if not self.current_position: return False
+            logging.info(f'\n\nIntersecion stoch => {self.current_position}')
+            self.is_intersection = True
+            return True
+        
+        # checking acceptable values of stochastic
+        if orange[-1] >= 25: stoch_position = 'short'
+        elif orange[-1] <= 75: stoch_position = 'long'
+
+        # if the stochastic has gone beyond the acceptable values
+        if stoch_position != self.current_position:
+            logging.info(f'stoch position => {stoch_position}')
+            self.candles_after_intersection = 0
+            self.current_position = ''
+            self.is_intersection = False
+            return self.__stoch_is_valid(blue, orange)    # check stoch again on this step
+
+        return True
+
+
+
+    def __ema_is_valid(self) -> bool:
+        if self.current_position == 'short':
+            ema_position_is_valid = self.prices_data[3][-1] < self.prices_data[4][-1]
+            is_intersection_ema_150_bar = max(self.prices_data[0][-10:]) > max(self.prices_data[4][-10:])
+            is_intersection_ema_50_last_bar = self.prices_data[2][-1] < self.prices_data[3][-1]
+
+        elif self.current_position == 'long':
+            ema_position_is_valid = self.prices_data[3][-1] > self.prices_data[4][-1]
+            is_intersection_ema_150_bar = min(self.prices_data[1][-10:]) < min(self.prices_data[4][-10:])
+            is_intersection_ema_50_last_bar = self.prices_data[2][-1] > self.prices_data[3][-1]
+
+        if ema_position_is_valid \
+            and is_intersection_ema_150_bar \
+            and is_intersection_ema_50_last_bar:
+            return True
+
+        return False
+
+
+
+    def __check_trend(self) -> str:
+        left_close_prices = self.prices_data[2][150:225]
+        right_close_prices = self.prices_data[2][225:]
+        maximums = (max(left_close_prices), max(right_close_prices))
+        minimums = (min(left_close_prices), min(right_close_prices))
+
+        if self.current_position == 'short':
+            is_maximums_valid = maximums[0] > maximums[1]
+            is_minimums_valid = minimums[0] > minimums[1]
+        elif self.current_position == 'long':
+            is_maximums_valid = maximums[0] < maximums[1]
+            is_minimums_valid = minimums[0] < minimums[1]
+
+        if is_maximums_valid and is_minimums_valid:
+            logging.info('trend => BUY')
+            return 'BUY'
+        
+        logging.info('trend => NOT_BUY')
+        return 'NOT_BUY'
 
 
 
@@ -134,70 +214,20 @@ class Trade:
         logging.info(f'nn decision => {action}')
 
         return action
-
-
-
-    def __check_position_ema(self) -> bool:
-        if (self.current_position == 'short') and \
-            (self.prices_data[3][-1] < self.prices_data[4][-1]):
-            return True
-        elif (self.current_position == 'long') and \
-            (self.prices_data[3][-1] > self.prices_data[4][-1]):
-            return True
-        
-        return False
     
 
 
-    def __check_intersection_ema(self) -> bool:
-        # last_close_prices = self.prices_data[2][-10:]
-        last_150_ema = self.prices_data[4][-10:]
-    
-        if self.current_position == 'short':
-            last_high_prices = self.prices_data[0][-10:]
-            if max(last_high_prices) > max(last_150_ema):
-                return True
-            
-        elif self.current_position == 'long':
-            last_low_prices = self.prices_data[1][-10:]
-            if min(last_low_prices) < min(last_150_ema):
-                return True
-            
-        return False
+    def __create_photo(self,
+                       normalizated_data: list[float],
+                       candle_time: str) -> str:
+        draw_graph = DrawGraph(normalizated_data)
+        filename = f'{self.symbol}_{self.interval}_{candle_time}.png'
+        filename = filename.replace(' ', '_').replace('/', '_').replace(':', '_')
+        savepath = os.path.join(ROOT_DIR, CANDLE_IMAGE_DIR, filename)
+        draw_graph.show_graph_line(save=True, savepath=savepath)
 
+        return savepath
 
-
-    def __check_intersection_stoch(self,
-                                   blue: tuple[float],
-                                   orange: tuple[float]) -> None:
-        if (orange[-2] >= 75) and (blue[-1] < orange[-1]) and (blue[-2] > orange[-2]):
-            self.current_position = 'short'
-        
-        elif (orange[-2] <= 25) and (blue[-1] > orange[-1]) and (blue[-2] < orange[-2]):
-            self.current_position = 'long'
-
-
-
-    def __check_stoch(self, orange: float) -> str | None:
-        if (self.current_position == 'short') and (orange >= 25):
-            return 'short'
-        
-        elif (self.current_position == 'long') and (orange <= 75):
-            return 'long'
-
-
-
-    def __check_candle_ema(self) -> bool:
-        if (self.current_position == 'short') and \
-            (self.prices_data[2][-1] < self.prices_data[3][-1]):    # last close price less than last ema 50
-            return True
-
-        elif (self.current_position == 'long') and \
-            (self.prices_data[2][-1] > self.prices_data[3][-1]):    # last close price more than last ema 50
-            return True
-        
-        return False
-    
 
 
     def create_request(candles):
@@ -297,11 +327,7 @@ class Trade:
         # unix_time = int(self.last_kline_start_time[:-3])
         # candle_start_time = datetime.fromtimestamp(unix_time)
         # normalizated_data = self.__normalization()
-        # draw_graph = DrawGraph(normalizated_data)
-        # filename = f'{self.symbol}_{self.interval}_{candle_start_time}.png'
-        # filename = filename.replace(' ', '_').replace('/', '_').replace(':', '_')
-        # savepath = os.path.join(ROOT_DIR, CANDLE_IMAGE_DIR, filename)
-        # draw_graph.show_graph_line(save=True, savepath=savepath)
+        # self.__create_photo(normalizated_data, candle_start_time)
         
         slowk, slowd = indicators.stochastic(
             high=pd.Series(self.prices_data[0]),
@@ -313,63 +339,40 @@ class Trade:
         blue = tuple(slowk)[-2:]
         orange = tuple(slowd)[-2:]
 
+        self.__check_trend()
         # print(f"[{round(blue[-2], 2)}] {round(blue[-1], 2)}")
         # print(f"[{round(orange[-2], 2)}] {round(orange[-1], 2)}\n")
         # unix_time = int(self.last_kline_start_time[:-3])
         # candle_start_time = datetime.fromtimestamp(unix_time)
         # print(f"{candle_start_time} <=> EMA 150 => [{self.prices_data[4][-2]}] {self.prices_data[4][-1]}\n")
 
-        if not self.is_intersection:
-            self.__check_intersection_stoch(blue, orange)
-            if not self.current_position:
-                return
-            self.is_intersection = True
-            logging.info(f'\n\nIntersecion stoch => {self.current_position}')
-        else:
-            stoch_position = self.__check_stoch(orange[-1])
-            if stoch_position != self.current_position:
-                logging.info(f'stoch position => {stoch_position}')
+        if self.__stoch_is_valid(blue, orange) and self.__ema_is_valid():
 
-                self.candles_after_intersection = 0
-                self.current_position = ''
-                if self.buy: self.buy = False
-
-                self.__check_intersection_stoch(blue, orange)
-                if not self.current_position:
-                    self.is_intersection = False
-                    return
-                
-
-        if self.__check_position_ema() and \
-            self.__check_intersection_ema() and \
-            self.__check_candle_ema():
-            
             logging.info(f'Intersecion ema => {self.current_position}')
             normalizated_data = self.__normalization()
             nn_action = self.__check_neural_network(normalizated_data)
-            
-            if (nn_action == 'BUY') and (not self.buy):
+            action_by_trend = self.__check_trend()
+
+            if (nn_action == 'BUY' or action_by_trend == 'BUY') and (not self.buy):
                 log_text = f'close price => {self.prices_data[2][-1]}\n' \
                     f'ema 50 => {self.prices_data[3][-1]}\n' \
                     f'ema 150 => {self.prices_data[4][-1]}\n' \
-                    f'stoch orange => {orange[-1]}\n' \
-                    f'stoch blue => {blue[-1]}\n'
+                    f'stoch orange => {round(orange[-1], 2)}\n' \
+                    f'stoch blue => {round(blue[-1], 2)}\n' \
+                    f'NN => {nn_action}\n' \
+                    f'TREND => {action_by_trend}\n'
                 logging.info(log_text)
                 
                 self.buy = True
+
                 unix_time = int(self.last_kline_start_time[:-3])
                 candle_start_time = datetime.fromtimestamp(unix_time)
-
-                draw_graph = DrawGraph(normalizated_data)
-                filename = f'{self.symbol}_{self.interval}_{candle_start_time}.png'
-                filename = filename.replace(' ', '_').replace('/', '_').replace(':', '_')
-                savepath = os.path.join(ROOT_DIR, CANDLE_IMAGE_DIR, filename)
-                draw_graph.show_graph_line(save=True, savepath=savepath)
+                path = self.__create_photo(normalizated_data, candle_start_time)
 
                 all_text = f'❗️❗️❗️СИГНАЛ❗️❗️❗️\n{self.symbol}\n{self.interval}\n' \
                     f'{self.current_position}\nВремя начала свечи: {candle_start_time}\n\n' \
                     f'{log_text}'
-                self.__send_message(msg_text=all_text, photo_path=savepath)
+                self.__send_message(msg_text=all_text, photo_path=path)
 
 
 
