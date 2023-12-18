@@ -47,6 +47,13 @@ class Trade:
 
 
 
+    def __reset_signal(self):
+        self.candles_after_intersection = 0
+        self.current_position = ''
+        self.is_intersection = False
+
+
+
     def __stoch_is_valid(self,
                       blue: tuple[float],
                       orange: tuple[float]) -> bool:
@@ -71,13 +78,11 @@ class Trade:
         # checking acceptable values of stochastic
         if orange[-1] >= 25: stoch_position = 'short'
         elif orange[-1] <= 75: stoch_position = 'long'
-
+        
         # if the stochastic has gone beyond the acceptable values
         if stoch_position != self.current_position:
             logging.info(f'stoch position => {stoch_position}')
-            self.candles_after_intersection = 0
-            self.current_position = ''
-            self.is_intersection = False
+            self.__reset_signal()
             return self.__stoch_is_valid(blue, orange)    # check stoch again on this step
         
         # if there was an new intersecton in interval [25, 75]
@@ -324,9 +329,7 @@ class Trade:
             if self.is_intersection:
                 self.candles_after_intersection += 1
                 if self.candles_after_intersection > 15:
-                    self.candles_after_intersection = 0
-                    self.current_position = ''
-                    self.is_intersection = False
+                    self.__reset_signal()
                     if self.buy: self.buy = False
         else:
             return False
@@ -346,7 +349,6 @@ class Trade:
         blue = tuple(slowk)[-2:]
         orange = tuple(slowd)[-2:]
 
-        self.__check_trend()
         # print(f"[{round(blue[-2], 2)}] {round(blue[-1], 2)}")
         # print(f"[{round(orange[-2], 2)}] {round(orange[-1], 2)}\n")
         # unix_time = int(self.last_kline_start_time[:-3])
