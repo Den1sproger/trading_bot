@@ -96,20 +96,30 @@ class Trade:
 
 
 
-    def __ema_is_valid(self) -> bool:
+    def __entry_point_ema_is_valid(self) -> bool:
         if self.current_position == 'short':
             ema_position_is_valid = self.prices_data[3][-1] < self.prices_data[4][-1]
             is_intersection_ema_150_bar = max(self.prices_data[0][-10:]) > max(self.prices_data[4][-10:])
-            is_intersection_ema_50_last_bar = self.prices_data[2][-1] < self.prices_data[3][-1]
 
+            # last bar should be below the ema 50
+            # and penultimate bar should be above the ema 50
+            entry_point_is_valid = self.prices_data[2][-1] < self.prices_data[3][-1] and \
+                (self.prices_data[2][-2] > self.prices_data[3][-2] \
+                or self.prices_data[2][-3] > self.prices_data[3][-3])
+            
         elif self.current_position == 'long':
             ema_position_is_valid = self.prices_data[3][-1] > self.prices_data[4][-1]
             is_intersection_ema_150_bar = min(self.prices_data[1][-10:]) < min(self.prices_data[4][-10:])
-            is_intersection_ema_50_last_bar = self.prices_data[2][-1] > self.prices_data[3][-1]
+
+            # last bar should be above the ema 50
+            # penultimate bar should be below the ema 50
+            entry_point_is_valid = self.prices_data[2][-1] > self.prices_data[3][-1] and \
+                (self.prices_data[2][-2] < self.prices_data[3][-2] \
+                or self.prices_data[2][-3] < self.prices_data[3][-3])
 
         if ema_position_is_valid \
             and is_intersection_ema_150_bar \
-            and is_intersection_ema_50_last_bar:
+            and entry_point_is_valid:
             return True
 
         return False
@@ -355,7 +365,8 @@ class Trade:
         # candle_start_time = datetime.fromtimestamp(unix_time)
         # print(f"{candle_start_time} <=> EMA 150 => [{self.prices_data[4][-2]}] {self.prices_data[4][-1]}\n")
 
-        if self.__stoch_is_valid(blue, orange) and self.__ema_is_valid():
+        if self.__stoch_is_valid(blue, orange) and \
+            self.__entry_point_ema_is_valid():
 
             logging.info(f'Intersecion ema => {self.current_position}')
             normalizated_data = self.__normalization()
