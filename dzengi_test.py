@@ -76,8 +76,11 @@ class Trade:
             return True
         
         # checking acceptable values of stochastic
-        if orange[-1] >= 25: stoch_position = 'short'
-        elif orange[-1] <= 75: stoch_position = 'long'
+        stoch_position = None
+        if (self.current_position == 'short') and (orange[-1] >= 25):
+            stoch_position = 'short'
+        elif (self.current_position == 'long') and (orange[-1] <= 75):
+            stoch_position = 'long'
         
         # if the stochastic has gone beyond the acceptable values
         if stoch_position != self.current_position:
@@ -86,8 +89,10 @@ class Trade:
             return self.__stoch_is_valid(blue, orange)    # check stoch again on this step
         
         # if there was an new intersecton in interval [25, 75]
-        if (self.current_position == 'short' and blue[-2] > orange[-2]) or \
-            (self.current_position == 'long' and blue[-2] < orange[-2]):
+        if (self.current_position == 'short' and blue[-2] > orange[-2] \
+            and orange[-2] < 75 and blue[-2] < 75) or \
+            (self.current_position == 'long' and blue[-2] < orange[-2] \
+            and orange[-2] > 25 and blue[-2] > 25):
             logging.info(f'New stochastic intersection')
             self.__reset_signal()
             return False
